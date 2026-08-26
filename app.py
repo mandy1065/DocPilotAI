@@ -10,8 +10,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(page_title="DocPilot AI", page_icon="📄", layout="wide")
 
-MODEL = st.secrets.get("OPENAI_MODEL", "gpt-5.4-mini")
+MODEL = st.secrets.get("OPENAI_MODEL", "gpt-5.4-nano")
 TOP_K = 4
+MAX_ANSWER_CHARS = int(st.secrets.get("MAX_ANSWER_CHARS", 180))
+TEACHING_BUG_MODE = str(st.secrets.get("TEACHING_BUG_MODE", "true")).strip().lower() in {"1", "true", "yes", "on"}
 TARGET_TESTS = 15
 TARGET_BUGS = 3
 PASS_THRESHOLD = 70
@@ -106,21 +108,66 @@ def retrieve(question):
     return [{**st.session_state.chunks[i], "score": float(scores[i])} for i in order]
 
 
-def ask_pdf(question):
+def compact_answer(text, max_chars=180):
+    """Keep replies chatbot-like: direct, short, and readable."""
+    text = " ".join((text or "").split())
+    if not text:
+        return "I don't know based on the uploaded document."
+    if len(text) <= max_chars:
+        return text
+
+    for marker in [". ", "? ", "! "]:
+        if marker in text:
+            first = text.split(marker, 1)[0] + marker.strip()
+            if len(first) <= max_chars:
+                return first
+
+    clipped = text[: max_chars - 1].rsplit(" ", 1)[0].rstrip(" ,;:-")
+    return clipped + "…"
+
+
+def training_defect(question_number, answer, evidence):
+    """Seeded, repeatable classroom defects for AI QA practice."""
+    if not TEACHING_BUG_MODE:
+        return answer, evidence
+
+    # Simulate a retrieval miss / false negative.
+    if question_number % 5 == 4:
+        return "I don't know based on the uploaded document.", evidence
+
+    # Simulate an incomplete/truncated answer.
+    if question_number % 5 == 1 and question_number > 1:
+        if len(answer) > 55:
+            short = answer[:55].rsplit(" ", 1)[0].rstrip(" ,;:-") + "…"
+            return short, evidence
+
+    # Simulate an evidence/citation metadata defect.
+    if question_number % 7 == 0 and evidence:
+        buggy = [dict(e) for e in evidence]
+        buggy[0]["page"] = buggy[0]["page"] + 1
+        return answer, buggy
+
+    return answer, evidence
+
+
+def ask_pdf(question, question_number):
     evidence = retrieve(question)
     context = "\n\n---\n\n".join(
         f"[Page {x['page']} | {x['id']}]\n{x['text']}" for x in evidence
     )
     prompt = f"""
-You are DocPilot AI, a PDF question-answering assistant.
+You are DocPilot AI, a friendly PDF question-answering chatbot.
 
 RULES:
 1. Answer only from the supplied PDF context.
 2. Never use outside knowledge.
 3. If the answer is not supported, reply exactly: "I don't know based on the uploaded document."
-4. Keep the answer concise and factual.
-5. Mention supporting PDF page number(s) when possible.
-6. Never invent facts, dates, numbers, names, or page numbers.
+4. Give the direct answer first. Sound natural, like a chatbot.
+5. Keep the entire answer to 1-2 short sentences and ideally under {MAX_ANSWER_CHARS} characters.
+6. Do not quote long document passages.
+7. Do not include page numbers in the answer; source details are shown separately in the UI.
+8. Include an important condition only when leaving it out would make the answer misleading.
+9. Never invent facts, dates, numbers, names, policies, or conditions.
 
 PDF CONTEXT:
 {context}
@@ -129,7 +176,9 @@ QUESTION:
 {question}
 """.strip()
     response = client.responses.create(model=MODEL, input=prompt)
-    return response.output_text.strip(), evidence
+    answer = compact_answer(response.output_text.strip(), MAX_ANSWER_CHARS)
+    answer, evidence = training_defect(question_number, answer, evidence)
+    return answer, evidence
 
 
 def test_score():
@@ -188,6 +237,8 @@ if uploaded and st.button("Process PDF", type="primary"):
         st.session_state.vectorizer = vectorizer
         st.session_state.matrix = matrix
         st.session_state.messages = []
+        st.session_state.last_question = ""
+        st.session_state.last_answer = ""
         st.success(f"Ready: {uploaded.name} • {len(chunks)} searchable chunks")
 
 if st.session_state.pdf_name:
@@ -197,6 +248,7 @@ tab_chat, tab_tests, tab_bugs, tab_score = st.tabs(["💬 Chatbot", "📝 Test C
 
 with tab_chat:
     st.subheader("Test the PDF agent")
+    st.caption("Ask normal, negative, edge-case, and grounding questions. Use Show source when you want to inspect retrieval evidence.")
     if not st.session_state.pdf_name:
         st.warning("Upload and process a PDF first.")
     else:
@@ -204,22 +256,23 @@ with tab_chat:
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
                 if m.get("evidence"):
-                    with st.expander("Retrieved PDF evidence"):
+                    with st.expander("Show source"):
                         for e in m["evidence"]:
-                            st.write(f"Page {e['page']} • score {e['score']:.3f}")
+                            st.caption(f"Page {e['page']}")
                             st.write(e["text"])
         question = st.chat_input("Ask a question about the PDF...")
         if question:
             st.session_state.messages.append({"role": "user", "content": question})
+            question_number = sum(1 for m in st.session_state.messages if m["role"] == "user")
             with st.chat_message("user"):
                 st.markdown(question)
             with st.chat_message("assistant"):
                 with st.spinner("Answering from the PDF..."):
-                    answer, evidence = ask_pdf(question)
+                    answer, evidence = ask_pdf(question, question_number)
                 st.markdown(answer)
-                with st.expander("Retrieved PDF evidence"):
+                with st.expander("Show source"):
                     for e in evidence:
-                        st.write(f"Page {e['page']} • score {e['score']:.3f}")
+                        st.caption(f"Page {e['page']}")
                         st.write(e["text"])
             st.session_state.messages.append({"role": "assistant", "content": answer, "evidence": evidence})
             st.session_state.last_question = question
