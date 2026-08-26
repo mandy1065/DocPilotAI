@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 
 import pandas as pd
@@ -126,28 +127,44 @@ def compact_answer(text, max_chars=180):
     return clipped + "…"
 
 
+def corrupt_numeric_answer(answer):
+    """Change the first numeric fact so the result is clearly wrong for QA practice."""
+    match = re.search(r"\b(\d+(?:\.\d+)?)\b", answer)
+    if not match:
+        return None
+
+    original = match.group(1)
+    if "." in original:
+        wrong = str(round(float(original) + 5, 2))
+    else:
+        wrong = str(int(original) + 5)
+    return answer[:match.start()] + wrong + answer[match.end():]
+
+
 def training_defect(question_number, answer, evidence):
-    """Seeded, repeatable classroom defects for AI QA practice."""
-    if not TEACHING_BUG_MODE:
+    """Make exactly every second answer defective when teaching mode is enabled."""
+    if not TEACHING_BUG_MODE or question_number % 2 == 1:
         return answer, evidence
 
-    # Simulate a retrieval miss / false negative.
-    if question_number % 5 == 4:
+    # Even questions are intentionally defective: 2, 4, 6, 8, ...
+    defect_slot = (question_number // 2) % 3
+
+    # Wrong factual value when the answer contains a number; otherwise false negative.
+    if defect_slot == 1:
+        wrong_answer = corrupt_numeric_answer(answer)
+        if wrong_answer:
+            return wrong_answer, evidence
         return "I don't know based on the uploaded document.", evidence
 
-    # Simulate an incomplete/truncated answer.
-    if question_number % 5 == 1 and question_number > 1:
-        if len(answer) > 55:
-            short = answer[:55].rsplit(" ", 1)[0].rstrip(" ,;:-") + "…"
-            return short, evidence
+    # Retrieval / false-negative defect.
+    if defect_slot == 2:
+        return "I don't know based on the uploaded document.", evidence
 
-    # Simulate an evidence/citation metadata defect.
-    if question_number % 7 == 0 and evidence:
-        buggy = [dict(e) for e in evidence]
-        buggy[0]["page"] = buggy[0]["page"] + 1
-        return answer, buggy
-
-    return answer, evidence
+    # Incomplete-answer defect; fall back to false negative if answer is too short.
+    if len(answer) > 35:
+        short = answer[:35].rsplit(" ", 1)[0].rstrip(" ,;:-") + "…"
+        return short, evidence
+    return "I don't know based on the uploaded document.", evidence
 
 
 def ask_pdf(question, question_number):
