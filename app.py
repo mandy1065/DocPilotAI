@@ -417,8 +417,7 @@ with tab_chat:
         st.info("Connect and process a PDF to activate the agent.")
     else:
         for m in st.session_state.messages:
-            avatar = "🧑‍💻" if m["role"] == "user" else "✦"
-            with st.chat_message(m["role"], avatar=avatar):
+            with st.chat_message(m["role"]):
                 st.markdown(m["content"])
                 if m.get("evidence"):
                     with st.expander("View grounding evidence"):
@@ -429,9 +428,9 @@ with tab_chat:
         if question:
             st.session_state.messages.append({"role": "user", "content": question})
             question_number = sum(1 for m in st.session_state.messages if m["role"] == "user")
-            with st.chat_message("user", avatar="🧑‍💻"):
+            with st.chat_message("user"):
                 st.markdown(question)
-            with st.chat_message("assistant", avatar="✦"):
+            with st.chat_message("assistant"):
                 with st.spinner("Agent is retrieving evidence and reasoning..."):
                     answer, evidence = ask_pdf(question, question_number)
                 st.markdown(answer)
