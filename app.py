@@ -12,6 +12,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(page_title="DocPilot AI", page_icon="🤖", layout="wide")
 
+# --- COURSE LANDING ROUTE ---
+if not st.session_state.get("open_ai_qa_project", False):
+    st.switch_page("pages/1_Learn_RAG.py")
+
+
 # The root app stays hidden from the student course navigation. Opening the
 # direct root URL sends students to Learn RAG first. The dedicated project page
 # sets DOCPILOT_PROJECT_PAGE=1 and executes this file as the final project.
