@@ -4,18 +4,7 @@ import streamlit as st
 
 st.set_page_config(page_title="DocPilot AI QA Course", page_icon="🧠", layout="wide")
 
-# Hide Streamlit's automatic multipage navigation. We use one stable custom
-# course menu instead so students always see exactly three choices.
-st.markdown(
-    """
-    <style>
-    div[data-testid="stSidebarNav"] {display:none !important;}
-    section[data-testid="stSidebar"] > div {padding-top:1rem;}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
+# One stable entry point with exactly three course sections.
 if "course_page" not in st.session_state:
     st.session_state.course_page = "Learn RAG"
 
@@ -33,10 +22,9 @@ ROOT = Path(__file__).resolve().parent
 
 
 def run_streamlit_content(path: Path, *, strip_project_redirects: bool = False):
-    """Execute an existing Streamlit lesson/app inside this single entry point."""
     source = path.read_text(encoding="utf-8")
 
-    # set_page_config may only be called once and must stay in this root app.
+    # Child modules must not call set_page_config because the root app already did.
     source = re.sub(
         r'^st\.set_page_config\([^\n]*\)\s*\n',
         '',
@@ -45,8 +33,7 @@ def run_streamlit_content(path: Path, *, strip_project_redirects: bool = False):
     )
 
     if strip_project_redirects:
-        # Remove old course-routing code that referenced the previous pages/
-        # navigation design. The custom radio above now owns navigation.
+        # Remove legacy routing from the preserved APP implementation.
         source = re.sub(
             r'# --- COURSE LANDING ROUTE ---.*?(?=MODEL\s*=)',
             '',
@@ -59,15 +46,18 @@ def run_streamlit_content(path: Path, *, strip_project_redirects: bool = False):
             source,
             flags=re.DOTALL,
         )
-        # Defensive removal for any remaining direct page switches.
         source = re.sub(r'^.*st\.switch_page\([^\n]*\).*\n?', '', source, flags=re.MULTILINE)
+
+    # Learn RAG used to switch directly to app.py. In this single-page course,
+    # the sidebar owns navigation, so remove any stale switch_page calls.
+    source = re.sub(r'^.*st\.switch_page\([^\n]*\).*\n?', '', source, flags=re.MULTILINE)
 
     exec(compile(source, str(path), "exec"), globals(), globals())
 
 
 if choice == "Learn RAG":
-    run_streamlit_content(ROOT / "pages" / "1_Learn_RAG.py")
+    run_streamlit_content(ROOT / "learn_rag.py")
 elif choice == "APP":
     run_streamlit_content(ROOT / "agent_app_impl.py", strip_project_redirects=True)
 else:
-    run_streamlit_content(ROOT / "pages" / "AI_Evaluation.py")
+    run_streamlit_content(ROOT / "ai_evaluation.py")
