@@ -11,6 +11,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(page_title="DocPilot AI", page_icon="🤖", layout="wide")
 
+# --- COURSE LANDING ROUTE ---
+if not st.session_state.get("open_ai_qa_project", False):
+    st.switch_page("pages/1_Learn_RAG.py")
+
+
 MODEL = st.secrets.get("OPENAI_MODEL", "gpt-5.4-nano")
 TOP_K = 4
 MAX_ANSWER_CHARS = int(st.secrets.get("MAX_ANSWER_CHARS", 180))
