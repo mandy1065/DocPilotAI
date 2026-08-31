@@ -1,4 +1,4 @@
-name: Fix Streamlit chat avatars
+name: Maintain Streamlit course routing
 
 on:
   push:
@@ -9,13 +9,13 @@ permissions:
   contents: write
 
 jobs:
-  fix:
+  maintain:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Remove unsupported chat avatars from app.py
+      - name: Keep chat compatibility and Learn RAG as default
         shell: python
         run: |
           from pathlib import Path
@@ -23,21 +23,28 @@ jobs:
           path = Path("app.py")
           text = path.read_text(encoding="utf-8")
 
+          # Keep chat_message compatible with current Streamlit versions.
           replacements = {
               'with st.chat_message(m["role"], avatar=avatar):': 'with st.chat_message(m["role"]):',
               'with st.chat_message("user", avatar="🧑‍💻"):': 'with st.chat_message("user"):',
               'with st.chat_message("assistant", avatar="✦"):': 'with st.chat_message("assistant"):',
           }
-
           for old, new in replacements.items():
               text = text.replace(old, new)
-
-          # The avatar assignment is no longer needed once all chat_message calls
-          # use Streamlit's built-in default avatars.
           text = text.replace(
               '            avatar = "🧑‍💻" if m["role"] == "user" else "✦"\n',
               '',
           )
+
+          # The root app is the final project. Unless Module 7 explicitly opens it,
+          # redirect students to the Learn RAG course first.
+          marker = '# --- COURSE LANDING ROUTE ---'
+          route = '''\n# --- COURSE LANDING ROUTE ---\nif not st.session_state.get("open_ai_qa_project", False):\n    st.switch_page("pages/1_Learn_RAG.py")\n\n'''
+          anchor = 'st.set_page_config(page_title="DocPilot AI", page_icon="🤖", layout="wide")\n'
+          if marker not in text:
+              if anchor not in text:
+                  raise SystemExit("Could not find Streamlit page config anchor")
+              text = text.replace(anchor, anchor + route, 1)
 
           if 'avatar=' in '\n'.join(
               line for line in text.splitlines() if 'st.chat_message' in line
@@ -47,16 +54,18 @@ jobs:
           path.write_text(text, encoding="utf-8")
 
       - name: Validate Python syntax
-        run: python -m py_compile app.py
+        run: |
+          python -m py_compile app.py
+          python -m py_compile pages/1_Learn_RAG.py
 
-      - name: Commit source fix if needed
+      - name: Commit source changes if needed
         run: |
           if git diff --quiet -- app.py; then
-            echo "app.py is already fixed"
+            echo "app.py already has the required routing and compatibility fixes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app.py
-          git commit -m "Fix Streamlit chat avatar compatibility"
+          git commit -m "Route students to Learn RAG before AI QA project"
           git push
