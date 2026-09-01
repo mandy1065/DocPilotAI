@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "docpilot_api.py"
+      - "docpilot_api_client.py"
       - "rag_eval.py"
       - "tests/**"
       - "requirements.txt"
@@ -11,6 +13,8 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "docpilot_api.py"
+      - "docpilot_api_client.py"
       - "rag_eval.py"
       - "tests/**"
       - "requirements.txt"
@@ -40,12 +44,28 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -z "$OPENAI_API_KEY" ]; then
-            echo "OPENAI_API_KEY GitHub secret is required for DeepEval LLM-as-a-judge metrics."
+            echo "OPENAI_API_KEY GitHub secret is required for RAG generation and DeepEval metrics."
             exit 1
           fi
 
-      - name: Run RAG DeepEval regression suite
+      - name: Start DocPilot RAG API
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: gpt-4.1-mini
-        run: pytest tests/test_deepeval_rag.py -v
+        run: |
+          uvicorn docpilot_api:app --host 127.0.0.1 --port 8000 > /tmp/docpilot-api.log 2>&1 &
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8000/api/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/docpilot-api.log
+          exit 1
+
+      - name: Run API + DeepEval regression suite
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4.1-mini
+          DOCPILOT_API_URL: http://127.0.0.1:8000
+        run: pytest tests/test_deepeval_api.py -v
