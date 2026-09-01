@@ -84,7 +84,12 @@ if choice == "Learn RAG":
         elif phase2_mode.startswith("2️⃣"):
             run_streamlit_content(ROOT / "deepeval_learning.py")
         else:
+            from deepeval_project_explainer import render_project_file_explainer
             from deepeval_project_lab import render_deepeval_project_lab
+
+            # Teach the purpose of the current file before students type it.
+            render_project_file_explainer(int(st.session_state.get("lab_step", 0)))
+            st.divider()
             render_deepeval_project_lab()
 elif choice == "APP":
     run_streamlit_content(ROOT / "agent_app_impl.py", strip_project_redirects=True)
