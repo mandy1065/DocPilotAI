@@ -74,6 +74,7 @@ if choice == "Learn RAG":
                 "1️⃣ Automation Basics",
                 "2️⃣ Learn DeepEval Metrics",
                 "3️⃣ Build DeepEval Project",
+                "4️⃣ Interview Prep",
             ],
             horizontal=True,
             label_visibility="collapsed",
@@ -83,7 +84,7 @@ if choice == "Learn RAG":
             run_streamlit_content(ROOT / "automation_basics.py")
         elif phase2_mode.startswith("2️⃣"):
             run_streamlit_content(ROOT / "deepeval_learning.py")
-        else:
+        elif phase2_mode.startswith("3️⃣"):
             from deepeval_project_explainer import render_project_file_explainer
             from deepeval_project_lab import render_deepeval_project_lab
 
@@ -91,6 +92,8 @@ if choice == "Learn RAG":
             render_project_file_explainer(int(st.session_state.get("lab_step", 0)))
             st.divider()
             render_deepeval_project_lab()
+        else:
+            run_streamlit_content(ROOT / "deepeval_interview_prep.py")
 elif choice == "APP":
     run_streamlit_content(ROOT / "agent_app_impl.py", strip_project_redirects=True)
 else:
