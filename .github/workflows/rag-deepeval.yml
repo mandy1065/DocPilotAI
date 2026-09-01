@@ -1,0 +1,51 @@
+name: RAG DeepEval Quality Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rag_eval.py"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/rag-deepeval.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "rag_eval.py"
+      - "tests/**"
+      - "requirements.txt"
+      - ".github/workflows/rag-deepeval.yml"
+  workflow_dispatch:
+
+jobs:
+  evaluate-rag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check evaluation secret
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY GitHub secret is required for DeepEval LLM-as-a-judge metrics."
+            exit 1
+          fi
+
+      - name: Run RAG DeepEval regression suite
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4.1-mini
+        run: pytest tests/test_deepeval_rag.py -v
