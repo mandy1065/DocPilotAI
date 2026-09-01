@@ -1,0 +1,27 @@
+[
+  {
+    "id": "reset_link",
+    "input": "How long is the password reset link valid?",
+    "expected_output": "The password reset link expires after 30 minutes."
+  },
+  {
+    "id": "opened_return",
+    "input": "Can I return an opened item after 20 days if it is not defective?",
+    "expected_output": "No. Opened items are not eligible for return unless the product is defective."
+  },
+  {
+    "id": "vacation_exception",
+    "input": "Can unused vacation days be carried forward?",
+    "expected_output": "Normally no. Unused vacation days cannot be carried forward unless a manager approves an exception."
+  },
+  {
+    "id": "new_employee_remote",
+    "input": "Can a new employee work remotely immediately?",
+    "expected_output": "No. New employees must complete their first 90 days in the office before the normal remote-work policy applies."
+  },
+  {
+    "id": "learning_allowance",
+    "input": "How much is the yearly learning allowance?",
+    "expected_output": "Employees receive a $500 learning allowance each calendar year."
+  }
+]
