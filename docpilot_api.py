@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tempfile
 from pathlib import Path
 from uuid import uuid4
@@ -64,11 +65,22 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 @app.post("/api/documents/text")
 def create_text_document(payload: TextDocumentRequest):
-    """Create a document from text for fast, deterministic classroom/CI automation."""
+    """Create a focused classroom document for deterministic CI automation.
+
+    The production-style PDF endpoint keeps the normal DocPilot chunking flow.
+    This teaching endpoint intentionally uses small sentence chunks and Top-K=1
+    so beginners begin with a clean retrieval baseline before experimenting with
+    noisier retrieval settings and watching DeepEval metrics fail.
+    """
     if not payload.text.strip():
         raise HTTPException(status_code=400, detail="Text is required.")
 
-    pipeline = RAGPipeline.from_text(payload.text)
+    chunks = [
+        piece.strip()
+        for piece in re.split(r"(?<=[.!?])\s+", payload.text.strip())
+        if piece.strip()
+    ]
+    pipeline = RAGPipeline(chunks, top_k=1)
     document_id = str(uuid4())
     DOCUMENTS[document_id] = pipeline
     return {
