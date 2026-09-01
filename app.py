@@ -48,15 +48,25 @@ def run_streamlit_content(path: Path, *, strip_project_redirects: bool = False):
         )
         source = re.sub(r'^.*st\.switch_page\([^\n]*\).*\n?', '', source, flags=re.MULTILINE)
 
-    # Learn RAG used to switch directly to app.py. In this single-page course,
-    # the sidebar owns navigation, so remove any stale switch_page calls.
+    # The single root app owns navigation.
     source = re.sub(r'^.*st\.switch_page\([^\n]*\).*\n?', '', source, flags=re.MULTILINE)
 
     exec(compile(source, str(path), "exec"), globals(), globals())
 
 
 if choice == "Learn RAG":
-    run_streamlit_content(ROOT / "learn_rag.py")
+    st.markdown("### Learning path")
+    learning_phase = st.radio(
+        "Choose learning phase",
+        ["Phase 1 · RAG Foundations", "Phase 2 · DeepEval Automation"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="learning_phase",
+    )
+    if learning_phase.startswith("Phase 1"):
+        run_streamlit_content(ROOT / "learn_rag.py")
+    else:
+        run_streamlit_content(ROOT / "deepeval_learning.py")
 elif choice == "APP":
     run_streamlit_content(ROOT / "agent_app_impl.py", strip_project_redirects=True)
 else:
