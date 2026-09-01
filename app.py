@@ -70,12 +70,18 @@ if choice == "Learn RAG":
         st.markdown("#### Phase 2 workspace")
         phase2_mode = st.radio(
             "Choose Phase 2 experience",
-            ["📘 Learn DeepEval Metrics", "🧑‍💻 Build DeepEval Project"],
+            [
+                "1️⃣ Automation Basics",
+                "2️⃣ Learn DeepEval Metrics",
+                "3️⃣ Build DeepEval Project",
+            ],
             horizontal=True,
             label_visibility="collapsed",
             key="phase2_mode",
         )
-        if phase2_mode.startswith("📘"):
+        if phase2_mode.startswith("1️⃣"):
+            run_streamlit_content(ROOT / "automation_basics.py")
+        elif phase2_mode.startswith("2️⃣"):
             run_streamlit_content(ROOT / "deepeval_learning.py")
         else:
             from deepeval_project_lab import render_deepeval_project_lab
