@@ -63,10 +63,23 @@ if choice == "Learn RAG":
         label_visibility="collapsed",
         key="learning_phase",
     )
+
     if learning_phase.startswith("Phase 1"):
         run_streamlit_content(ROOT / "learn_rag.py")
     else:
-        run_streamlit_content(ROOT / "deepeval_learning.py")
+        st.markdown("#### Phase 2 workspace")
+        phase2_mode = st.radio(
+            "Choose Phase 2 experience",
+            ["📘 Learn DeepEval Metrics", "🧑‍💻 Build DeepEval Project"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="phase2_mode",
+        )
+        if phase2_mode.startswith("📘"):
+            run_streamlit_content(ROOT / "deepeval_learning.py")
+        else:
+            from deepeval_project_lab import render_deepeval_project_lab
+            render_deepeval_project_lab()
 elif choice == "APP":
     run_streamlit_content(ROOT / "agent_app_impl.py", strip_project_redirects=True)
 else:
